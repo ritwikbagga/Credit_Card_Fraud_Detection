@@ -2,44 +2,79 @@ import time
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from statistics import mode
 
 from sklearn.model_selection import KFold
 
 
-def score(y_true, y_pred):  #return [precision , recall , F1]
-    # variables to store count of TP , FP , TN , FN
+# comment1
+
+def f1_score(y_true, y_pred):
+    """
+    Function for calculating the F1 score
+
+    Params
+    ------
+    y_true  : the true labels shaped (N, C),
+              N is the number of datapoints
+              C is the number of classes
+    y_pred  : the predicted labels, same shape
+              as y_true
+
+    Return
+    ------
+    score   : the F1 score, shaped (N,)
+
+    """
     tp = 0
-    fp = 0
     tn = 0
+    fp = 0
     fn = 0
 
     for i in zip(y_true, y_pred):
-        if i[0]==1:
-            if i[1]==1:
-                tp+=1
+        if i[0] == 1:
+            if i[1] == 1:
+                tp += 1
             else:
-                fn+=1
-        else: #y_true=0
-            if i[1]==0:
-                tn+=1
+                fn += 1
+        else:
+            if i[1] == 0:
+                tn += 1
             else:
-                fp+=1
-    if tp==0:
-        precision=1
-        recall = 0
-    else:
-        precision = tp / (tp + fp)
-        recall = tp / (tp + fn)
+                fp += 1
 
-    #print("precission is ="+str(precision))
-    #print("Recall is = " +str(recall))
-    f1 = (2*precision*recall)/(precision+recall)
-    #print("F1 score for current fold is="+ str(f1))
-    return [precision, recall, f1]
+    precision = tp / (tp + fp)
+    recall = tp / (tp + fn)
+    print("precision = " + str(precision))
+    print("recall = " + str(recall))
+    f1 = 2 * ((precision * recall) / (precision + recall))
+    return f1
 
 
+def gini_index(groups, classes):
+    """
+    Function for calculating the gini index
+        -- The goodness of the split
 
+    Params
+    ------
+    groups  : A list containing two groups of samples
+                resulted by the split
+    classes : The classes in the classification problem
+                e.g. [0,1]
 
+    Return
+    ------
+    gini    : the gini index of the split
+    """
+    split = []
+    gini = 1
+    for g in groups:
+        ones = sum(g)
+        split.append(ones / len(g))
+    for s in split:
+        gini -= s ** 2
+    return gini
 
 
 def get_split(x_train, y_train):
@@ -54,55 +89,81 @@ def get_split(x_train, y_train):
 
     Return
     ------
-    {gini_index, split_index, split_value} #this is a node
+    {gini_index, split_index, split_value}
     """
-    #take each feature , sort and then check indices of y_train
-    #every indices of 1 = i (L)
-    #calculate gini as gini = (Nl0 * Nl1)/ Nl + (Nr0 * Nr1)/Nr
-    #find the min and return
+    """
+    returns a Node?
 
-    gini = [] # gini vector to store gini for whole for each feature
-
-
-    result = {"gini_index":None,
-            "split_index":None ,
-            "split_value": None } #to return
-    features = x_train.T #loop for eqch feature
-    best_gini = 10000
-    for feature in features:
-        y_sorted = y_train.reshape(-1)[np.argsort[feature]] #got the indices of sorted by x1,,
-        dy = np.array([feature, y_train.reshape(-1,)]).T
-        total_samples = len(y_train)
-        find_one = np.argwhere(y_sorted==1)[:,0]
-        ones = []
-
-        for index in find_one: #as suggested by TA
-            temp = index*[0]
-            temp.extend([1]*(total_samples-index-1))
-            ones.append(temp)
-
-        L1 = ones.sum(axis=0)
-        L  = np.arrange(1, total_samples)
-        L0 = L-L1
-        R1 = sum(y_train)-L1 #only 2 splits
-        R = np.arange(total_samples, -1, 0, -1)
-        R0 = R-R1
-        cur_gini = (L0*L1)/L + (R0*R1)/R
+    take dim1
+    sort it and keep y_train attached to it
+    get every index where y_train == 1, store in i
+    create an array for each index j in i having all 1s beginning from j (0s for all indexes less than j)
+    sum all these arrays to obtain Nl1 vector
+    Nl = [1, 2, 3, 4...., S] where S is the number of samples
+    we know Nl + Nr = sum(1s in Y)
+    create Nr1 using sum(1s in Y) - Nl1
+    create Nl0 using Nl - Nl1
+    create Nr0 using Nr - Nr1
 
 
-        # I am really lost here as to how to proceed in code but theoritically I know what is happening
+    G(split) = (Nl0 * Nl1)/ Nl + (Nr0 * Nr1)/Nr
+    now find min(array) to get best split index
 
 
     """
-    get the min of gini index(x) and corresponding split index(y), split_value(z) and 
-     then get the node {"gini_index":x, "split_index":y , "split_value":z}
-    """
+    ginis = []
+    for dim in x_train.T:
+        dimsort = dim[np.argsort(dim)]
+        ysort = y_train.reshape(-1)[np.argsort(dim)]
+        dimy = np.array([dim, y_train.reshape(-1, )]).T
 
-    #return result
-    pass
+        samples = len(y_train)
+        dimy = dimy[np.argsort(dimy[:, 1])]
+        ones_indexes = np.argwhere(ysort == 1)[:, 0]
+        ones_array = []
+        for i in ones_indexes:
+            # ones_array.append([0 if j < i else 1 for j in range(samples)])
+            temp = [0] * i
+            temp.extend([1] * (samples - i - 1))
+            ones_array.append(temp)
+        ones_array = np.array(ones_array)
+        Nl1 = ones_array.sum(axis=0)
+        Nl = np.arange(1, samples)
+        Nr = np.arange(samples - 1, 0, -1)
+        Nr1 = sum(y_train) - Nl1
+        Nl0 = Nl - Nl1
+        Nr0 = Nr - Nr1
+        g_split = (2 / samples) * (((Nl0 * Nl1) / Nl) + ((Nr0 * Nr1) / Nr))
+        g_min_val = min(g_split)
+        g_min_index = np.where(g_split == min(g_split))[0]
+        val_at_min = dimsort[g_min_index][0]
+
+        ginis.append([g_min_val, int(g_min_index[0]), val_at_min])
+    ginis = np.array(ginis)
+    best_feature_index = np.argmin(ginis[:, 0])  # column number of the best index
+    # traning_xy = np.array(x_train,y_train.reshape(-1,))
+    sorted_x_train = x_train[np.argsort(x_train[:, best_feature_index])]
+    sorted_y_train = y_train[np.argsort(x_train[:, best_feature_index])]
+    sample_index = ginis[best_feature_index][1]
+    left_data_x = sorted_x_train[0:int(sample_index)]
+    left_data_y = sorted_y_train[:int(sample_index)]
+
+    right_data_x = sorted_x_train[int(sample_index):]
+    right_data_y = sorted_y_train[int(sample_index):]
+
+    left_node = (left_data_x, left_data_y)
+    right_node = (right_data_x, right_data_y)
+    split_index = best_feature_index
+    split_value = ginis[best_feature_index][2]
+    data = (left_node, right_node, split_index, split_value)
+    return data
 
 
-
+##########################################################
+# Alternatively combine gini_index into get_split and
+# find the split point using an array instead of a for
+# loop, would speed up run time
+##########################################################
 
 
 class DecisionTree(object):
@@ -120,18 +181,10 @@ class DecisionTree(object):
         """
         self.max_depth = max_depth
         self.min_size = min_size
-        self.tree = None
-
-    def terminal(self, node):
-        """
-        finds the mode of class in node and returns the label
-        """
-
-        pass
-
-
-
-
+        self.root = None
+        self.left = None
+        self.right = None
+        # self.num_datapoints = None
 
     def split(self, data, depth):
         """
@@ -147,47 +200,44 @@ class DecisionTree(object):
         Return
         ------
         """
-        left = data["left_node"]
-        right = data["right_node"]
-        if not left or not right: #base case
-            data["left_node"] = data["right_node"] = self.terminal(left+right)
+        # base case
+        if depth > self.max_depth:
+            a = data[0][1].reshape(-1)
+            np.append(a, data[1][1].reshape(-1))
+            self.root = (None, None, mode(a), None)
+            return
 
-        if depth>self.max_depth: #base case
-            data["left_node"] , data["right_node"] = self.terminal(left),  self.terminal(right)
+        # change state
+        # check number of data points in y_train of split
 
-        if len(left)<=self.min_size: #base case
-            self.terminal(left)
+        self.root = get_split(data[0], data[1])
+        self.left = DecisionTree(self.max_depth, self.min_size)
+        self.right = DecisionTree(self.max_depth, self.min_size)
+        self.left.fit(self.root[0][0], self.root[0][1], depth + 1)
+        self.right.fit(self.root[1][0], self.root[1][1], depth + 1)
 
-        if len(right)<=self.min_size: #base case
-            self.terminal(right)
-        else:
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    def fit(self, x_train, y_train):
+    def fit(self, x_train, y_train, depth=0):
         """
+        Fitting the KNN classifier
+
         Hint: Build the decision tree using
                 splits recursively until a leaf
                 node is reached
 
         """
-        self.tree = get_split(x_train,y_train) #tree={ gini_index, split index, split,vale}
-        self.split(self.tree, 1 )
-        return self.tree
+        self.depth = depth
+        if (len(y_train) > self.min_size) and (depth < self.max_depth):
+            # self.root = get_split(x_train, y_train)
+            # self.num_datapoints = len(self.root[0][1]) + len(self.root[1][1])
+            self.split((x_train, y_train), depth + 1)
+        else:
+            try:
+                m = mode(y_train.reshape(-1))
+            except:
+                m = 1
 
-
+            self.root = (None, None, m, None)
+            return
 
     def predict(self, x_test):
         """
@@ -196,43 +246,65 @@ class DecisionTree(object):
         Hint: Run the test data through the decision tree built
                 during training (self.tree)
         """
-        for row in x_test:
-            if
+        prediction = None
+
+        if self.root[-1] is None:
+            prediction = self.root[2]
+
+        else:
+            if x_test[int(self.root[2])] < self.root[-1]:
+                prediction = self.left.predict(x_test)
+
+            else:
+                prediction = self.right.predict(x_test)
+        if prediction is None:
+            print("prediction is None :/")
+            raise ValueError
+        return prediction
 
 
 def main():
-    X_t = np.genfromtxt('../../Data/x_train.csv', delimiter=',')  # shape = (200000, 29)
-    y_t = np.genfromtxt('../../Data/y_train.csv', delimiter=',')  # shape = (200000,)
-    def k_fold_validation(max_depth=5, train_x=None, train_y=None):
-        print("#######################################################")
-        print("Decision Tree FOR Max_Depth="+str(max_depth))
-        print("#######################################################")
-        X = train_x
-        y = train_y
+    # Example running the class DecisionTree
+
+    print("running...")
+
+    # Example running the class KNN
+    x_train_path = "../../Data/x_train.csv"
+    y_train_path = "../../Data/y_train.csv"
+
+    x_df = np.genfromtxt(x_train_path, delimiter=',')
+    y_df = np.genfromtxt(y_train_path, delimiter=',')
+
+    # print(x_df)
+    # # input(x_df.values.tolist()[:20])
+    # x_train, y_train, x_test, y_test = train_test_split(x_df, y_df, test_size=0.2, random_state=2)
+    #
+    # knn = KNN(n_neighbors=5)
+    # knn.fit(x_train.to_numpy().reshape(-1, 1), y_train)
+    # y_pred = knn.predict(x_test.to_numpy().reshape(-1, 1))
+    # score = f1_score(y_test, y_pred)
+    # print(score)
+    # input()
+    ########################################
+    # Simple Guide on KFold
+    ########################################
+    kf = KFold(n_splits=5)
+    kf.get_n_splits(x_df)
+
+    for i, (train_index, test_index) in enumerate(kf.split(x_df)):
+        x_train, x_test = x_df[train_index], x_df[test_index]
+        y_train, y_test = y_df[train_index], y_df[test_index]
         dt = DecisionTree(max_depth=5)
-        kf = KFold(n_splits=5)
-        kf.get_n_splits(train_x)
-        F1_score = 0
+        print("calling fit...")
+        dt.fit(x_train, y_train.reshape(-1, 1))
+        y_pred = [dt.predict(x_test_i) for x_test_i in x_test]
+        score = f1_score(y_test, y_pred)
 
-        for i, (train_index, test_index) in enumerate(kf.split(X)):
-            startt = time.time()
-            print("FOLD=" + str(i + 1))
-            X_train, X_test = X[train_index], X[test_index]
-            y_train, y_test = y[train_index], y[test_index]
-            dt.fit(X_train, y_train)
-            y_pred = dt.predict(X_test)
-            F1_score += score(y_test, y_pred)[2]
-            ent = time.time()
-            print("Time for this fold is: "+ str(ent-startt) +" Seconds")
+        print(str(i) + " f1 score = " + str(score))
 
-        print("Final F1 for all the folds is " + str(F1_score / 5))
-    Max_Depth_List = [3, 6, 9, 12, 15]
-    for max_depth in Max_Depth_List:
-        start = time.time()
-        k_fold_validation(max_depth, X_t, y_t)
-        end = time.time()
-        print("Total Time for all 5 folds with d= "+str(max_depth)+" is "+str(end-start)+" seconds")
 
+if __name__ == "__main__":
+    main()
 
 
 
