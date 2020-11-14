@@ -6,8 +6,8 @@ confidentiality issues, the background information about the features will not b
 
 # Models Used 
 
-K Nearest Neighbors
-Decision Trees
+1)K Nearest Neighbors
+2)Decision Trees
 
 
 
